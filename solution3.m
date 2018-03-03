@@ -105,45 +105,23 @@ agentMovementHistory = zeros(episodeLength+1, 2) ;
 agentMovementHistory(currentTimeStep + 1, :) = agentLocation ;
 
 %% Evaluate the policy
-state_values =  zeros(MDP_1.GridSize(1), MDP_1.GridSize(2));
-old_state_values = zeros(MDP_1.GridSize(1), MDP_1.GridSize(2));
-stop = false;
-theta = 0.001;
-c = 0;
-while (stop == false)
-%     delta = 0;
-    for i = 1:MDP_1.GridSize(1)
-        for j = 1:MDP_1.GridSize(2)
-            agentLocation = [i j];
-            old_state_values(i, j) = state_values(i, j);  % old v
-            actionTaken = pi_test1(i, j);
-            [ possibleTransitions, probabilityForEachTransition ] = ...
-                MDP_1.getTransitions(agentLocation, actionTaken);  % action
-            num_transitions = size(possibleTransitions, 1);
-%             rewards = zeros([num_transitions 1]);
-            value = 0;
-            for k = 1:num_transitions
-                transitionLocation = possibleTransitions(k, :);
-%                 agentLocation
-                reward = MDP_1.getReward( ...
-                    agentLocation, transitionLocation, actionTaken );
-                value = ...
-                    value + ...
-                    probabilityForEachTransition(k) * ...
-                    (reward + state_values(transitionLocation(1), ...
-                    transitionLocation(2)));
-            end
-            state_values(i, j) = value;
-        end
+policy_stable = false;
+old_pi = pi_test1;
+c= 0;
+while (policy_stable == false)
+    c=c+1
+    state_values = eval_policy(MDP_1, old_pi);
+    new_pi = improve_policy(MDP_1, state_values, old_pi);
+    if (isequal(old_pi, new_pi))
+        policy_stable = true;
+    else
+        old_pi = new_pi;
     end
-    if (abs(state_values-old_state_values) == 0)
-        stop = true;
-    end
-%     stop = true;
 end
 
-state_values
+new_pi
 
+%% Improve the policy
 % %% PRINT MAP:
 % % You can update viewableGridMap in a similar way as below, in order to
 % % keep track of the current visible area for your car (don't use this with
