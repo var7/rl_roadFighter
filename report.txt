@@ -1,0 +1,22 @@
+Exercise 2
+Part 1
+######
+Assume you have evaluated a policy, for example the policy evaluated
+in Exercise 1. What procedure could you then run to produce a better policy?
+Given your answer, can this new policy ever be stochastic?
+Answer
+######
+We can run a policy improvement step to produce a better policy. 
+Yes, this new policy can be stochastic in nature when we have more than one action that produce the improvement in the step. 
+If we have a policy pi1 with current value V1 for state s; if we run policy improvement and obtain a policy pi2 which has a value V2 >= V1 for state s then pi2 is a better policy. At this stage if we find two actions that can be taken in state s which give the same value V2, then the policy pi2 can stochastically pick between these two actions assigning them equal probability mass.
+#####################
+Part 2
+######
+Assume that you are in the middle of running a policy iteration procedure over the Exercise 1 scenario, and that you are about to start a new policyevaluation step. If we were suddenly informed that we would have to use a new
+reward function from this point forward, would the policy iteration procedure
+ever converge to an optimal policy? Why?
+Answer
+######
+Yes. 
+In Policy Iteration, we  start from an arbitrary policy with arbitrary values assigned to the states before the policy evaluation step and converge to an optimal policy. This is because "Each policy is guaranteed to be a strict improvement over the previous one (unless it is already optimal). Because a finite MDP has only a finite number of policies, this process must converge to an optimal policy and optimal value function in a finite number of iterations" (from Sutton chapter 4.3)
+When the reward function is changed before the policy evaluation step, we can assume that the existing policy is an arbitrarily chosen policy and the states have arbitrary values; the alogrithm will still converge to the optimal policy. 
