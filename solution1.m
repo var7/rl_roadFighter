@@ -171,7 +171,7 @@ state_values
 % 
 % for i = 1:episodeLength
 %     
-%     actionTaken = pi_test1( realAgentLocation(1), realAgentLocation(2) );
+%     actionTaken = new_pi( realAgentLocation(1), realAgentLocation(2) );
 %     
 %     % The $GridMap$ functions $getTransitions$ and $getReward$ act as the 
 %     % problems transition and reward function respectively.
