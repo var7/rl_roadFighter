@@ -1,0 +1,20 @@
+Report for CW2
+Comments start with % COMMENT to differntiate between existing comments and what I have added.
+
+Question 1:
+I have used a decaying learning rate;
+Weights are initialized to random values between 0 and 1;
+Action = 3 is never explored because the policy of the policy implied by Q_test1Its value does not change
+
+Implemented both TD and MC. ALGORITHM = 0 for MC and 1 for TD
+
+Question 2:
+- Used a decaying learning rate and a decaying epsilon to reduce exploration as number of episodes increases.
+Epsilon is lower thresholded at 0.05
+- Weight are initialized to random values between 0 and 1;
+- An epsilon-greedy policy is used.
+- For random maps - weights stop changing extremely quickly which is weird;
+- To check correctness and that it is indeed learning I use test_policy.m where we learn 
+over one map using the features
+- For test_policy.m I find that it takes a lot longer to converge - 1700 episodes and learns to avoid the 
+other cars.
