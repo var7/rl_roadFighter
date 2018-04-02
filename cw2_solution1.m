@@ -227,12 +227,10 @@ else % TD
         realAgentLocation = agentLocation ; % The location on the full test map.
         Return = 0;
  
-        % COMMENT: For TD go through the whole episode till it ends
-        % Record the action taken, the state visited, and the reward
-        % obtained
-        % THEN: Do a rollout of the actions, states and find the Return for a
-        % given state, action pair
-        % Do the MC estimate and update the function
+        % COMMENT: For TD while going through the episode update the values
+        % by bootstrapping
+        % using the q_value of the next state
+    
         for i = episode:episodeLength
 
             % Use the $getStateFeatures$ function as below, in order to get the
@@ -272,8 +270,10 @@ else % TD
 
             % COMMENT: Storing values needed
             
+            % COMMENT: get the next states features
             nextStateFeatures = MDP.getStateFeatures(realAgentLocation);
             
+            % COMMENT: find the action of the next state
             for action = 1:3
                 next_action_values(action) = ...
                     sum ( sum( Q_test1(:,:,action) .* nextStateFeatures ) );
@@ -281,11 +281,13 @@ else % TD
 
             [q_value_next_state, nextActionTaken] = max(next_action_values);
             
+            % COMMENT: find the estimate of the q value for this state, action pair
             q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
             
+            % COMMENT: calculate the td_target based on this current estimate
             td_target = agentRewardSignal + discount * q_value_next_state;
-%             actionTaken
-%             weights(:, :, actionTaken)
+
+            % COMMENT: do the weight update using gradient descent and td_target
             weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
                     alpha .* ((td_target - q_value) .* stateFeatures);
             % If you want to view the agents behaviour sequentially, and with a
