@@ -1,4 +1,4 @@
-clc; clear all;
+% clc; clear all;
 
 %% ACTION CONSTANTS:
 UP_LEFT = 1 ;
@@ -75,121 +75,264 @@ discount = 1;
 alpha = 0.01;
 decay = .1;
 weights = rand(4, 5, 3);
-for episode = 1:total_episodes
-    
-    
-    %%
-    currentTimeStep = 0 ;
-    MDP = generateMap( roadBasisGridMaps, n_MiniMapBlocksPerMap, ...
-        blockSize, noCarOnRowProbability, ...
-        probabilityOfUniformlyRandomDirectionTaken, rewards );
-    currentMap = MDP ;
-    agentLocation = currentMap.Start ;
-    startingLocation = agentLocation ; % Keeping record of initial location.
-    
-    % If you need to keep track of agent movement history:
-    agentMovementHistory = zeros(episodeLength+1, 2) ;
-    agentMovementHistory(currentTimeStep + 1, :) = agentLocation ;
-        
-    realAgentLocation = agentLocation ; % The location on the full test map.
-    Return = 0;
-    
-    states = zeros(episodeLength, 4, 5);
-    rewards = zeros(episodeLength, 1);
-    actions = zeros(episodeLength, 1);
-    step = 0;
-    for i = episode:episodeLength
-        step = step + 1;
-        % Use the $getStateFeatures$ function as below, in order to get the
-        % feature description of a state:
-        stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
-        
-        for action = 1:3
-            action_values(action) = ...
-                sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
-        end % for each possible action
-%         if i == 1
-%             actionTaken = randi(3);
-%         else
-        [~, actionTaken] = max(action_values);
-%         end
-          
-               
-        % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
-        % problems transition and reward function respectively.
-        %
-        % Your agent might not know these functions, but your simulator
-        % does! (How wlse would we get our data?)
-        %
-        % $actionMoveAgent$ can be used to simulate agent (the car) behaviour.
-        
-        %     [ possibleTransitions, probabilityForEachTransition ] = ...
-        %         MDP.getTransitions( realAgentLocation, actionTaken );
-        %     [ numberOfPossibleNextStates, ~ ] = size(possibleTransitions);
-        previousAgentLocation = realAgentLocation;
-        
-        [ agentRewardSignal, realAgentLocation, currentTimeStep, ...
-            agentMovementHistory ] = ...
-            actionMoveAgent( actionTaken, realAgentLocation, MDP, ...
-            currentTimeStep, agentMovementHistory, ...
-            probabilityOfUniformlyRandomDirectionTaken ) ;
-        
-        %     MDP.getReward( ...
-        %             previousAgentLocation, realAgentLocation, actionTaken )
-        
-        rewards(step) = agentRewardSignal;
-        actions(step) = actionTaken;
-        states(step, :, :) = stateFeatures;
-        Return = Return + agentRewardSignal;
-        
-        % If you want to view the agents behaviour sequentially, and with a
-        % moving view window, try using $pause(n)$ to pause the screen for $n$
-        % seconds between each draw:
-%         
-%         [ viewableGridMap, agentLocation ] = setCurrentViewableGridMap( ...
-%             MDP, realAgentLocation, blockSize );
-%         % $agentLocation$ is the location on the viewable grid map for the
-%         % simulation. It is used by $refreshScreen$.
-%         
-%         currentMap = viewableGridMap ; %#ok<NASGU>
-%         % $currentMap$ is keeping track of which part of the full test map
-%         % should be printed by $refreshScreen$ or $printAgentTrajectory$.
-%         
-%         refreshScreen
-%         
-%         pause(0.15)
-        
-    end
-%     step
-    prevWeight = weights;
-    
-    for i=1:step
-        stateFeatures = states(i);
-        actionTaken = actions(i);
-        Return = 0;
-        for k = i:step
-            Return = Return + discount^(k-i) * rewards(k);
-        end
-        q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
-        weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
-                alpha .* ((Return - q_value) .* stateFeatures);
-    end
-%     disp("Weights after update")
-%     disp(weights)
-    if abs(prevWeight - weights) < 1e-05
-        disp("Weights are not changing anymore")
-        episode
-        break
-    end
-    alpha = alpha * (1/(1 + decay * episode));
-    currentMap = MDP ;
-    agentLocation = realAgentLocation ;
-%     Returns
-%     Return
-    
-%     printAgentTrajectory
-%     pause(1)
-    
-end % for each episode
 
+if ALGORITHM == 0
+    disp('MC Policy evaluation')
+    for episode = 1:total_episodes
+
+
+        %%
+        currentTimeStep = 0 ;
+        MDP = generateMap( roadBasisGridMaps, n_MiniMapBlocksPerMap, ...
+            blockSize, noCarOnRowProbability, ...
+            probabilityOfUniformlyRandomDirectionTaken, rewards );
+        currentMap = MDP ;
+        agentLocation = currentMap.Start ;
+        startingLocation = agentLocation ; % Keeping record of initial location.
+
+        % If you need to keep track of agent movement history:
+        agentMovementHistory = zeros(episodeLength+1, 2) ;
+        agentMovementHistory(currentTimeStep + 1, :) = agentLocation ;
+
+        realAgentLocation = agentLocation ; % The location on the full test map.
+        Return = 0;
+
+        states = zeros(episodeLength, 4, 5);
+        rewards = zeros(episodeLength, 1);
+        actions = zeros(episodeLength, 1);
+        step = 0;
+        % COMMENT: For MC go through the whole episode till it ends
+        % Record the action taken, the state visited, and the reward
+        % obtained
+        % THEN: Do a rollout of the actions, states and find the Return for a
+        % given state, action pair
+        % Do the MC estimate and update the function
+        for i = episode:episodeLength
+            step = step + 1;
+            % Use the $getStateFeatures$ function as below, in order to get the
+            % feature description of a state:
+            stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
+
+            for action = 1:3
+                action_values(action) = ...
+                    sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
+            end % for each possible action
+    %         if i == 1
+    %             actionTaken = randi(3);
+    %         else
+            [~, actionTaken] = max(action_values);
+    %         end
+
+
+            % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
+            % problems transition and reward function respectively.
+            %
+            % Your agent might not know these functions, but your simulator
+            % does! (How wlse would we get our data?)
+            %
+            % $actionMoveAgent$ can be used to simulate agent (the car) behaviour.
+
+            %     [ possibleTransitions, probabilityForEachTransition ] = ...
+            %         MDP.getTransitions( realAgentLocation, actionTaken );
+            %     [ numberOfPossibleNextStates, ~ ] = size(possibleTransitions);
+            previousAgentLocation = realAgentLocation;
+
+            [ agentRewardSignal, realAgentLocation, currentTimeStep, ...
+                agentMovementHistory ] = ...
+                actionMoveAgent( actionTaken, realAgentLocation, MDP, ...
+                currentTimeStep, agentMovementHistory, ...
+                probabilityOfUniformlyRandomDirectionTaken ) ;
+
+            %     MDP.getReward( ...
+            %             previousAgentLocation, realAgentLocation, actionTaken )
+
+            % COMMENT: Storing values needed
+            rewards(step) = agentRewardSignal;
+            actions(step) = actionTaken;
+            states(step, :, :) = stateFeatures;
+            Return = Return + agentRewardSignal;
+
+            % If you want to view the agents behaviour sequentially, and with a
+            % moving view window, try using $pause(n)$ to pause the screen for $n$
+            % seconds between each draw:
+    %         
+    %         [ viewableGridMap, agentLocation ] = setCurrentViewableGridMap( ...
+    %             MDP, realAgentLocation, blockSize );
+    %         % $agentLocation$ is the location on the viewable grid map for the
+    %         % simulation. It is used by $refreshScreen$.
+    %         
+    %         currentMap = viewableGridMap ; %#ok<NASGU>
+    %         % $currentMap$ is keeping track of which part of the full test map
+    %         % should be printed by $refreshScreen$ or $printAgentTrajectory$.
+    %         
+    %         refreshScreen
+    %         
+    %         pause(0.15)
+
+        end
+    %     step
+        prevWeight = weights;
+
+        % COMMENT: rollout the episode
+        for i=1:step
+            stateFeatures = states(i); % state visited
+            actionTaken = actions(i); % action taken in the state
+            % find the experienced return of that state
+            Return = 0; 
+            for k = i:step
+                Return = Return + discount^(k-i) * rewards(k);
+            end
+            % find our prev estimate of the value of the state, action pair
+            q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
+            % update our weights to correct for the difference in Return and
+            % q_valu using gradient descent update
+            weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
+                    alpha .* ((Return - q_value) .* stateFeatures);
+        end
+    %     disp("Weights after update")
+    %     disp(weights)
+        if abs(prevWeight - weights) < 1e-05
+            disp("Weights are not changing anymore")
+            episode
+            break
+        end
+        % use an appriopriately decaying learning rate
+        alpha = alpha * (1/(1 + decay * episode));
+        currentMap = MDP ;
+        agentLocation = realAgentLocation ;
+
+    %     printAgentTrajectory
+    %     pause(1)
+
+    end % for each episode
+else % TD 
+    disp('TD Policy Evaluation')
+    for episode = 1:total_episodes
+
+
+        %%
+        currentTimeStep = 0 ;
+        MDP = generateMap( roadBasisGridMaps, n_MiniMapBlocksPerMap, ...
+            blockSize, noCarOnRowProbability, ...
+            probabilityOfUniformlyRandomDirectionTaken, rewards );
+        currentMap = MDP ;
+        agentLocation = currentMap.Start ;
+        startingLocation = agentLocation ; % Keeping record of initial location.
+
+        % If you need to keep track of agent movement history:
+        agentMovementHistory = zeros(episodeLength+1, 2) ;
+        agentMovementHistory(currentTimeStep + 1, :) = agentLocation ;
+
+        realAgentLocation = agentLocation ; % The location on the full test map.
+        Return = 0;
+
+        states = zeros(episodeLength, 4, 5);
+        rewards = zeros(episodeLength, 1);
+        actions = zeros(episodeLength, 1);
+        step = 0;
+        % COMMENT: For TD go through the whole episode till it ends
+        % Record the action taken, the state visited, and the reward
+        % obtained
+        % THEN: Do a rollout of the actions, states and find the Return for a
+        % given state, action pair
+        % Do the MC estimate and update the function
+        for i = episode:episodeLength
+            step = step + 1;
+            % Use the $getStateFeatures$ function as below, in order to get the
+            % feature description of a state:
+            stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
+
+            for action = 1:3
+                action_values(action) = ...
+                    sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
+            end % for each possible action
+    %         if i == 1
+    %             actionTaken = randi(3);
+    %         else
+            [~, actionTaken] = max(action_values);
+    %         end
+
+
+            % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
+            % problems transition and reward function respectively.
+            %
+            % Your agent might not know these functions, but your simulator
+            % does! (How wlse would we get our data?)
+            %
+            % $actionMoveAgent$ can be used to simulate agent (the car) behaviour.
+
+            %     [ possibleTransitions, probabilityForEachTransition ] = ...
+            %         MDP.getTransitions( realAgentLocation, actionTaken );
+            %     [ numberOfPossibleNextStates, ~ ] = size(possibleTransitions);
+            previousAgentLocation = realAgentLocation;
+
+            [ agentRewardSignal, realAgentLocation, currentTimeStep, ...
+                agentMovementHistory ] = ...
+                actionMoveAgent( actionTaken, realAgentLocation, MDP, ...
+                currentTimeStep, agentMovementHistory, ...
+                probabilityOfUniformlyRandomDirectionTaken ) ;
+
+            %     MDP.getReward( ...
+            %             previousAgentLocation, realAgentLocation, actionTaken )
+
+            % COMMENT: Storing values needed
+            rewards(step) = agentRewardSignal;
+            actions(step) = actionTaken;
+            states(step, :, :) = stateFeatures;
+            Return = Return + agentRewardSignal;
+
+            % If you want to view the agents behaviour sequentially, and with a
+            % moving view window, try using $pause(n)$ to pause the screen for $n$
+            % seconds between each draw:
+    %         
+    %         [ viewableGridMap, agentLocation ] = setCurrentViewableGridMap( ...
+    %             MDP, realAgentLocation, blockSize );
+    %         % $agentLocation$ is the location on the viewable grid map for the
+    %         % simulation. It is used by $refreshScreen$.
+    %         
+    %         currentMap = viewableGridMap ; %#ok<NASGU>
+    %         % $currentMap$ is keeping track of which part of the full test map
+    %         % should be printed by $refreshScreen$ or $printAgentTrajectory$.
+    %         
+    %         refreshScreen
+    %         
+    %         pause(0.15)
+
+        end
+    %     step
+        prevWeight = weights;
+
+        % COMMENT: rollout the episode
+        for i=1:step
+            stateFeatures = states(i); % state visited
+            actionTaken = actions(i); % action taken in the state
+            % find the experienced return of that state
+            Return = 0; 
+            for k = i:step
+                Return = Return + discount^(k-i) * rewards(k);
+            end
+            % find our prev estimate of the value of the state, action pair
+            q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
+            % update our weights to correct for the difference in Return and
+            % q_valu using gradient descent update
+            weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
+                    alpha .* ((Return - q_value) .* stateFeatures);
+        end
+    %     disp("Weights after update")
+    %     disp(weights)
+        if abs(prevWeight - weights) < 1e-05
+            disp("Weights are not changing anymore")
+            episode
+            break
+        end
+        % use an appriopriately decaying learning rate
+        alpha = alpha * (1/(1 + decay * episode));
+        currentMap = MDP ;
+        agentLocation = realAgentLocation ;
+
+    %     printAgentTrajectory
+    %     pause(1)
+
+    end % for each episode
+end
 weights

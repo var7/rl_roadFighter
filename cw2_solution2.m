@@ -57,11 +57,6 @@ MDP = generateMap( roadBasisGridMaps, n_MiniMapBlocksPerMap, blockSize, ...
 stateFeatures = ones( 4, 5 );
 action_values = zeros(1, 3);
 
-Q_test1 = ones(4, 5, 3);
-Q_test1(:,:,1) = 100;
-Q_test1(:,:,3) = 100;% obviously this is not a correctly computed Q-function; it does imply a policy however: Always go Up! (though on a clear road it will default to the first indexed action: go left)
-
-
 %% TEST ACTION TAKING, MOVING WINDOW AND TRAJECTORY PRINTING:
 % Simulating agent behaviour when following the policy defined by 
 % $pi_test1$.
@@ -73,8 +68,11 @@ ALGORITHM = 0; % MC
 total_episodes = 1000;
 discount = 1;
 alpha = 0.01;
-decay = .1;
+decay = .00001;
 weights = rand(4, 5, 3);
+epsilon = 1;
+eps_decay = .01;
+disp('Policy Iteration')
 for episode = 1:total_episodes
     
     
@@ -106,13 +104,15 @@ for episode = 1:total_episodes
         
         for action = 1:3
             action_values(action) = ...
-                sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
+                sum ( sum( weights(:,:,action) .* stateFeatures ) );
         end % for each possible action
-%         if i == 1
-%             actionTaken = randi(3);
-%         else
-        [~, actionTaken] = max(action_values);
-%         end
+        prob = rand;
+%         prob < epsilon
+        if prob < epsilon
+            actionTaken = randi(3);
+        else
+            [~, actionTaken] = max(action_values);
+        end
           
                
         % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
@@ -176,12 +176,16 @@ for episode = 1:total_episodes
     end
 %     disp("Weights after update")
 %     disp(weights)
-    if abs(prevWeight - weights) < 1e-05
+    if abs(prevWeight - weights) < 1e-08
         disp("Weights are not changing anymore")
         episode
         break
     end
     alpha = alpha * (1/(1 + decay * episode));
+    epsilon = epsilon * (1/(1 + eps_decay * episode))
+    if epsilon < 0.05
+        epsilon = 0.05;
+    end
     currentMap = MDP ;
     agentLocation = realAgentLocation ;
 %     Returns
@@ -193,3 +197,5 @@ for episode = 1:total_episodes
 end % for each episode
 
 weights
+
+
