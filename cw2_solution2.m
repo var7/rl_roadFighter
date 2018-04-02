@@ -57,6 +57,11 @@ MDP = generateMap( roadBasisGridMaps, n_MiniMapBlocksPerMap, blockSize, ...
 stateFeatures = ones( 4, 5 );
 action_values = zeros(1, 3);
 
+Q_test1 = ones(4, 5, 3);
+Q_test1(:,:,1) = 100;
+Q_test1(:,:,3) = 100;% obviously this is not a correctly computed Q-function; it does imply a policy however: Always go Up! (though on a clear road it will default to the first indexed action: go left)
+
+% pi_test = randi
 %% TEST ACTION TAKING, MOVING WINDOW AND TRAJECTORY PRINTING:
 % Simulating agent behaviour when following the policy defined by 
 % $pi_test1$.
@@ -64,17 +69,24 @@ action_values = zeros(1, 3);
 % Commented lines also have examples of use for $GridMap$'s $getReward$ and
 % $getTransitions$ functions, which act as our reward and transition
 % functions respectively.
-ALGORITHM = 0; % MC
+
+% COMMENT
 total_episodes = 1000;
 discount = 1;
 alpha = 0.01;
 decay = .00001;
 weights = rand(4, 5, 3);
-epsilon = 1;
+% weights = Q_test1;
+epsilon = 0.5;
 eps_decay = .01;
-disp('Policy Iteration')
+disp('MC Policy Iteration: Control')
 for episode = 1:total_episodes
-    
+    % COMMENT: For MC go through the whole episode till it ends
+    % Record the action taken, the state visited, and the reward
+    % obtained
+    % THEN: Do a rollout of the actions, states and find the Return for a
+    % given state, action pair
+    % Do the MC estimate and update the function
     
     %%
     currentTimeStep = 0 ;
@@ -102,16 +114,18 @@ for episode = 1:total_episodes
         % feature description of a state:
         stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
         
+        % COMMENT: Use the current freshest value function to get behavior
         for action = 1:3
             action_values(action) = ...
                 sum ( sum( weights(:,:,action) .* stateFeatures ) );
         end % for each possible action
-        prob = rand;
-%         prob < epsilon
-        if prob < epsilon
-            actionTaken = randi(3);
+        % COMMENT: Epsilon greedy behavior
+        prob = rand; % sample from uniform distribution
+        
+        if prob < epsilon 
+            actionTaken = randi(3);  % random action
         else
-            [~, actionTaken] = max(action_values);
+            [~, actionTaken] = max(action_values);  % greedy action
         end
           
                
@@ -137,6 +151,8 @@ for episode = 1:total_episodes
         %     MDP.getReward( ...
         %             previousAgentLocation, realAgentLocation, actionTaken )
         
+        % COMMENT: Storing values needed
+
         rewards(step) = agentRewardSignal;
         actions(step) = actionTaken;
         states(step, :, :) = stateFeatures;
@@ -164,24 +180,31 @@ for episode = 1:total_episodes
     prevWeight = weights;
     
     for i=1:step
-        stateFeatures = states(i);
-        actionTaken = actions(i);
-        Return = 0;
+        stateFeatures = states(i); % state visited
+        actionTaken = actions(i); % action taken in the state
+        % find the experienced return of that state
+        Return = 0; 
         for k = i:step
             Return = Return + discount^(k-i) * rewards(k);
         end
+        % find our prev estimate of the value of the state, action pair
         q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
+        % update our weights to correct for the difference in Return and
+        % q_value using gradient descent update
         weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
                 alpha .* ((Return - q_value) .* stateFeatures);
     end
 %     disp("Weights after update")
 %     disp(weights)
-    if abs(prevWeight - weights) < 1e-08
+%     if abs(prevWeight - weights) < 1e-08
+    if prevWeight == weights
         disp("Weights are not changing anymore")
         episode
         break
     end
+    % decay learning rate
     alpha = alpha * (1/(1 + decay * episode));
+    % decay epsilon. lower threshold is 0.05
     epsilon = epsilon * (1/(1 + eps_decay * episode))
     if epsilon < 0.05
         epsilon = 0.05;

@@ -1,7 +1,68 @@
+clc; clear all;
+
+% COMMENT: file to test solution for policy iteration;
+% train on same map and see the outcome
+%% ACTION CONSTANTS:
+UP_LEFT = 1 ;
+UP = 2 ;
+UP_RIGHT = 3 ;
+
+
+%% PROBLEM SPECIFICATION:
+
+blockSize = 5 ; % This will function as the dimension of the road basis 
+% images (blockSize x blockSize), as well as the view range, in rows of
+% your car (including the current row).
+
+n_MiniMapBlocksPerMap = 5 ; % determines the size of the test instance. 
+% Test instances are essentially road bases stacked one on top of the
+% other.
+
+basisEpsisodeLength = blockSize - 1 ; % The agent moves forward at constant speed and
+% the upper row of the map functions as a set of terminal states. So 5 rows
+% -> 4 actions.
+
+episodeLength = blockSize*n_MiniMapBlocksPerMap - 1 ;% Similarly for a complete
+% scenario created from joining road basis grid maps in a line.
+
+%discountFactor_gamma = 1 ; % if needed
+
+rewards = [ 1, -1, -20 ] ; % the rewards are state-based. In order: paved 
+% square, non-paved square, and car collision. Agents can occupy the same
+% square as another car, and the collision does not end the instance, but
+% there is a significant reward penalty.
+
+probabilityOfUniformlyRandomDirectionTaken = 0.15 ; % Noisy driver actions.
+% An action will not always have the desired effect. This is the
+% probability that the selected action is ignored and the car uniformly 
+% transitions into one of the above 3 states. If one of those states would 
+% be outside the map, the next state will be the one above the current one.
+
+roadBasisGridMaps = generateMiniMaps ; % Generates the 8 road basis grid 
+% maps, complete with an initial location for your agent. (Also see the 
+% GridMap class).
+
+noCarOnRowProbability = 0.8 ; % the probability that there is no car 
+% spawned for each row
+
+seed = 2018;
+rng(seed); % setting the seed for the random nunber generator
+
+% Call this whenever starting a new episode:
+MDP = generateMap( roadBasisGridMaps, n_MiniMapBlocksPerMap, blockSize, ...
+    noCarOnRowProbability, probabilityOfUniformlyRandomDirectionTaken, ...
+    rewards );
+
+
 %% Initialising the state observation (state features) and setting up the 
 % exercise approximate Q-function:
 stateFeatures = ones( 4, 5 );
 action_values = zeros(1, 3);
+
+Q_test1 = ones(4, 5, 3);
+Q_test1(:,:,1) = 100;
+Q_test1(:,:,3) = 100;% obviously this is not a correctly computed Q-function; it does imply a policy however: Always go Up! (though on a clear road it will default to the first indexed action: go left)
+
 
 %% TEST ACTION TAKING, MOVING WINDOW AND TRAJECTORY PRINTING:
 % Simulating agent behaviour when following the policy defined by 
@@ -10,14 +71,142 @@ action_values = zeros(1, 3);
 % Commented lines also have examples of use for $GridMap$'s $getReward$ and
 % $getTransitions$ functions, which act as our reward and transition
 % functions respectively.
+total_episodes = 100000;
+discount = 1;
+alpha = 0.01;
+decay = .00001;
+weights = rand(4, 5, 3);
+% weights = Q_test1;
+epsilon = 0.5;
+eps_decay = .01;
+disp('Policy Iteration')
+
+for episode = 1:total_episodes
+    
+%     episode
+    %%
+    currentTimeStep = 0 ;
+
+    currentMap = MDP ;
+    agentLocation = currentMap.Start ;
+    startingLocation = agentLocation ; % Keeping record of initial location.
+    
+    % If you need to keep track of agent movement history:
+    agentMovementHistory = zeros(episodeLength+1, 2) ;
+    agentMovementHistory(currentTimeStep + 1, :) = agentLocation ;
+        
+    realAgentLocation = agentLocation ; % The location on the full test map.
+    Return = 0;
+    states = zeros(episodeLength, 4, 5);
+    rewards = zeros(episodeLength, 1);
+    actions = zeros(episodeLength, 1);
+    step = 0;
+    for i = 1:episodeLength
+        step = step + 1;
+        % Use the $getStateFeatures$ function as below, in order to get the
+        % feature description of a state:
+        stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
+        
+        for action = 1:3
+            action_values(action) = ...
+                sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
+        end % for each possible action
+        prob = rand;
+%         prob < epsilon
+        if prob < epsilon
+%             disp('Random action')
+            actionTaken = randi(3);
+        else
+            [~, actionTaken] = max(action_values);
+        end
+               
+        % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
+        % problems transition and reward function respectively.
+        %
+        % Your agent might not know these functions, but your simulator
+        % does! (How wlse would we get our data?)
+        %
+        % $actionMoveAgent$ can be used to simulate agent (the car) behaviour.
+        
+        %     [ possibleTransitions, probabilityForEachTransition ] = ...
+        %         MDP.getTransitions( realAgentLocation, actionTaken );
+        %     [ numberOfPossibleNextStates, ~ ] = size(possibleTransitions);
+        %     previousAgentLocation = realAgentLocation;
+        
+        [ agentRewardSignal, realAgentLocation, currentTimeStep, ...
+            agentMovementHistory ] = ...
+            actionMoveAgent( actionTaken, realAgentLocation, MDP, ...
+            currentTimeStep, agentMovementHistory, ...
+            probabilityOfUniformlyRandomDirectionTaken ) ;
+        
+        %     MDP.getReward( ...
+        %             previousAgentLocation, realAgentLocation, actionTaken )
+        rewards(step) = agentRewardSignal;
+        actions(step) = actionTaken;
+        states(step, :, :) = stateFeatures;
+        Return = Return + agentRewardSignal;
+        
+        % If you want to view the agents behaviour sequentially, and with a
+        % moving view window, try using $pause(n)$ to pause the screen for $n$
+        % seconds between each draw:
+        
+        [ viewableGridMap, agentLocation ] = setCurrentViewableGridMap( ...
+            MDP, realAgentLocation, blockSize );
+        % $agentLocation$ is the location on the viewable grid map for the
+        % simulation. It is used by $refreshScreen$.
+        
+%         currentMap = viewableGridMap ; %#ok<NASGU>
+%         % $currentMap$ is keeping track of which part of the full test map
+%         % should be printed by $refreshScreen$ or $printAgentTrajectory$.
+%         
+%         refreshScreen
+%         
+%         pause(0.15)
+        
+    end
+    prevWeight = weights;
+    
+    for i=1:step
+        stateFeatures = states(i);
+        actionTaken = actions(i);
+        Return = 0;
+        for k = i:step
+            Return = Return + discount^(k-i) * rewards(k);
+        end
+        q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
+        weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
+                alpha .* ((Return - q_value) .* stateFeatures);
+    end
+%     disp("Weights after update")
+%     disp(weights)
+    if abs(prevWeight - weights) < 1e-08
+%     if prevWeight == weights
+        disp("Weights are not changing anymore")
+        episode
+        break
+    end
+    alpha = alpha * (1/(1 + decay * episode));
+    epsilon = epsilon * (1/(1 + eps_decay * episode));
+    if epsilon < 0.05
+        epsilon = 0.05;
+    end
+    
+    currentMap = MDP ;
+    agentLocation = realAgentLocation ;
+    
+%     Return
+    
+%     printAgentTrajectory
+%     pause(1)
+    
+end % for each episode
+weights
+
 for episode = 1:1
     
     
     %%
     currentTimeStep = 0 ;
-    MDP = generateMap( roadBasisGridMaps, n_MiniMapBlocksPerMap, ...
-        blockSize, noCarOnRowProbability, ...
-        probabilityOfUniformlyRandomDirectionTaken, rewards );
     currentMap = MDP ;
     agentLocation = currentMap.Start ;
     startingLocation = agentLocation ; % Keeping record of initial location.
@@ -92,4 +281,4 @@ for episode = 1:1
     printAgentTrajectory
     pause(1)
     
-end % for each episode
+end

@@ -1,4 +1,4 @@
-% clc; clear all;
+clc; clear all;
 
 %% ACTION CONSTANTS:
 UP_LEFT = 1 ;
@@ -185,7 +185,7 @@ if ALGORITHM == 0
             % find our prev estimate of the value of the state, action pair
             q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
             % update our weights to correct for the difference in Return and
-            % q_valu using gradient descent update
+            % q_value using gradient descent update
             weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
                     alpha .* ((Return - q_value) .* stateFeatures);
         end
@@ -207,8 +207,9 @@ if ALGORITHM == 0
     end % for each episode
 else % TD 
     disp('TD Policy Evaluation')
+    
     for episode = 1:total_episodes
-
+        prevWeight = weights;
 
         %%
         currentTimeStep = 0 ;
@@ -225,11 +226,7 @@ else % TD
 
         realAgentLocation = agentLocation ; % The location on the full test map.
         Return = 0;
-
-        states = zeros(episodeLength, 4, 5);
-        rewards = zeros(episodeLength, 1);
-        actions = zeros(episodeLength, 1);
-        step = 0;
+ 
         % COMMENT: For TD go through the whole episode till it ends
         % Record the action taken, the state visited, and the reward
         % obtained
@@ -237,7 +234,7 @@ else % TD
         % given state, action pair
         % Do the MC estimate and update the function
         for i = episode:episodeLength
-            step = step + 1;
+
             % Use the $getStateFeatures$ function as below, in order to get the
             % feature description of a state:
             stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
@@ -246,11 +243,9 @@ else % TD
                 action_values(action) = ...
                     sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
             end % for each possible action
-    %         if i == 1
-    %             actionTaken = randi(3);
-    %         else
+
             [~, actionTaken] = max(action_values);
-    %         end
+ 
 
 
             % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
@@ -276,11 +271,23 @@ else % TD
             %             previousAgentLocation, realAgentLocation, actionTaken )
 
             % COMMENT: Storing values needed
-            rewards(step) = agentRewardSignal;
-            actions(step) = actionTaken;
-            states(step, :, :) = stateFeatures;
-            Return = Return + agentRewardSignal;
+            
+            nextStateFeatures = MDP.getStateFeatures(realAgentLocation);
+            
+            for action = 1:3
+                next_action_values(action) = ...
+                    sum ( sum( Q_test1(:,:,action) .* nextStateFeatures ) );
+            end % for each possible action
 
+            [q_value_next_state, nextActionTaken] = max(next_action_values);
+            
+            q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
+            
+            td_target = agentRewardSignal + discount * q_value_next_state;
+%             actionTaken
+%             weights(:, :, actionTaken)
+            weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
+                    alpha .* ((td_target - q_value) .* stateFeatures);
             % If you want to view the agents behaviour sequentially, and with a
             % moving view window, try using $pause(n)$ to pause the screen for $n$
             % seconds between each draw:
@@ -300,24 +307,7 @@ else % TD
 
         end
     %     step
-        prevWeight = weights;
-
-        % COMMENT: rollout the episode
-        for i=1:step
-            stateFeatures = states(i); % state visited
-            actionTaken = actions(i); % action taken in the state
-            % find the experienced return of that state
-            Return = 0; 
-            for k = i:step
-                Return = Return + discount^(k-i) * rewards(k);
-            end
-            % find our prev estimate of the value of the state, action pair
-            q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
-            % update our weights to correct for the difference in Return and
-            % q_valu using gradient descent update
-            weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
-                    alpha .* ((Return - q_value) .* stateFeatures);
-        end
+        
     %     disp("Weights after update")
     %     disp(weights)
         if abs(prevWeight - weights) < 1e-05
