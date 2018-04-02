@@ -1,4 +1,4 @@
-
+clc; clear all;
 
 %% ACTION CONSTANTS:
 UP_LEFT = 1 ;
@@ -69,9 +69,12 @@ Q_test1(:,:,3) = 100;% obviously this is not a correctly computed Q-function; it
 % Commented lines also have examples of use for $GridMap$'s $getReward$ and
 % $getTransitions$ functions, which act as our reward and transition
 % functions respectively.
-total_episodes = 1000
-q_values = zeros(MDP.GridSize(1), MDP.GridSize(2), 3);
-Returns = zeros(MDP.GridSize(1), MDP.GridSize(2), 3, total_episodes);
+ALGORITHM = 0; % MC
+total_episodes = 1000;
+discount = 1;
+alpha = 0.01;
+decay = .1;
+weights = rand(4, 5, 3);
 for episode = 1:total_episodes
     
     
@@ -81,8 +84,7 @@ for episode = 1:total_episodes
         blockSize, noCarOnRowProbability, ...
         probabilityOfUniformlyRandomDirectionTaken, rewards );
     currentMap = MDP ;
-%     agentLocation = currentMap.Start ;
-    agentLocation = [randi(MDP.GridSize(1)), randi(MDP.GridSize(2))]
+    agentLocation = currentMap.Start ;
     startingLocation = agentLocation ; % Keeping record of initial location.
     
     % If you need to keep track of agent movement history:
@@ -92,8 +94,12 @@ for episode = 1:total_episodes
     realAgentLocation = agentLocation ; % The location on the full test map.
     Return = 0;
     
-    for i = 1:episodeLength
-        
+    states = zeros(episodeLength, 4, 5);
+    rewards = zeros(episodeLength, 1);
+    actions = zeros(episodeLength, 1);
+    step = 0;
+    for i = episode:episodeLength
+        step = step + 1;
         % Use the $getStateFeatures$ function as below, in order to get the
         % feature description of a state:
         stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
@@ -102,11 +108,11 @@ for episode = 1:total_episodes
             action_values(action) = ...
                 sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
         end % for each possible action
-        if i == 1
-            actionTaken = randi(3);
-        else
-            [~, actionTaken] = max(action_values);
-        end
+%         if i == 1
+%             actionTaken = randi(3);
+%         else
+        [~, actionTaken] = max(action_values);
+%         end
           
                
         % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
@@ -131,11 +137,11 @@ for episode = 1:total_episodes
         %     MDP.getReward( ...
         %             previousAgentLocation, realAgentLocation, actionTaken )
         
+        rewards(step) = agentRewardSignal;
+        actions(step) = actionTaken;
+        states(step, :, :) = stateFeatures;
         Return = Return + agentRewardSignal;
-        Returns(previousAgentLocation(1), previousAgentLocation(2), actionTaken, episode) =...
-            Return;
-        q_values(previousAgentLocation(1), previousAgentLocation(2), actionTaken) = ...
-            mean(Returns(previousAgentLocation(1), previousAgentLocation(2), actionTaken, 1:episode));
+        
         % If you want to view the agents behaviour sequentially, and with a
         % moving view window, try using $pause(n)$ to pause the screen for $n$
         % seconds between each draw:
@@ -154,7 +160,28 @@ for episode = 1:total_episodes
 %         pause(0.15)
         
     end
+%     step
+    prevWeight = weights;
     
+    for i=1:step
+        stateFeatures = states(i);
+        actionTaken = actions(i);
+        Return = 0;
+        for k = i:step
+            Return = Return + discount^(k-i) * rewards(k);
+        end
+        q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
+        weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
+                alpha .* ((Return - q_value) .* stateFeatures);
+    end
+%     disp("Weights after update")
+%     disp(weights)
+    if abs(prevWeight - weights) < 1e-05
+        disp("Weights are not changing anymore")
+        episode
+        break
+    end
+    alpha = alpha * (1/(1 + decay * episode));
     currentMap = MDP ;
     agentLocation = realAgentLocation ;
 %     Returns
@@ -165,4 +192,4 @@ for episode = 1:total_episodes
     
 end % for each episode
 
-q_values
+weights

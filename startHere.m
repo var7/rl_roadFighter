@@ -1,7 +1,6 @@
 % Initializes the map problem. Use this as an initial guide for how to
 % store agent states and trajectories. Take care when renaming variables
 % since these might be referenced by other srcipts.
-%
 % This is not set to go, but most book-keeping procedures are shown. It is
 % up to you to determine how you want to go about structuring your code. 
 % For example, in the end of PROBLEM SPECIFICATION I generate CarLocations 

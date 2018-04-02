@@ -1,3 +1,5 @@
+clc; clear all;
+
 %% ACTION CONSTANTS:
 UP_LEFT = 1 ;
 UP = 2 ;
@@ -67,7 +69,13 @@ Q_test1(:,:,3) = 100;% obviously this is not a correctly computed Q-function; it
 % Commented lines also have examples of use for $GridMap$'s $getReward$ and
 % $getTransitions$ functions, which act as our reward and transition
 % functions respectively.
-for episode = 1:1
+ALGORITHM = 0; % MC
+total_episodes = 1000;
+discount = 1;
+alpha = 0.01;
+decay = .1;
+weights = rand(4, 5, 3);
+for episode = 1:total_episodes
     
     
     %%
@@ -86,17 +94,26 @@ for episode = 1:1
     realAgentLocation = agentLocation ; % The location on the full test map.
     Return = 0;
     
-    for i = 1:episodeLength
-        
+    states = zeros(episodeLength, 4, 5);
+    rewards = zeros(episodeLength, 1);
+    actions = zeros(episodeLength, 1);
+    step = 0;
+    for i = episode:episodeLength
+        step = step + 1;
         % Use the $getStateFeatures$ function as below, in order to get the
         % feature description of a state:
-        stateFeatures = MDP.getStateFeatures(realAgentLocation) % dimensions are 4rows x 5columns
+        stateFeatures = MDP.getStateFeatures(realAgentLocation); % dimensions are 4rows x 5columns
         
         for action = 1:3
             action_values(action) = ...
                 sum ( sum( Q_test1(:,:,action) .* stateFeatures ) );
         end % for each possible action
-        [~, actionTaken] = max(action_values)
+%         if i == 1
+%             actionTaken = randi(3);
+%         else
+        [~, actionTaken] = max(action_values);
+%         end
+          
                
         % The $GridMap$ functions $getTransitions$ and $getReward$ act as the
         % problems transition and reward function respectively.
@@ -109,7 +126,7 @@ for episode = 1:1
         %     [ possibleTransitions, probabilityForEachTransition ] = ...
         %         MDP.getTransitions( realAgentLocation, actionTaken );
         %     [ numberOfPossibleNextStates, ~ ] = size(possibleTransitions);
-        %     previousAgentLocation = realAgentLocation;
+        previousAgentLocation = realAgentLocation;
         
         [ agentRewardSignal, realAgentLocation, currentTimeStep, ...
             agentMovementHistory ] = ...
@@ -120,34 +137,59 @@ for episode = 1:1
         %     MDP.getReward( ...
         %             previousAgentLocation, realAgentLocation, actionTaken )
         
+        rewards(step) = agentRewardSignal;
+        actions(step) = actionTaken;
+        states(step, :, :) = stateFeatures;
         Return = Return + agentRewardSignal;
         
         % If you want to view the agents behaviour sequentially, and with a
         % moving view window, try using $pause(n)$ to pause the screen for $n$
         % seconds between each draw:
-        
-        [ viewableGridMap, agentLocation ] = setCurrentViewableGridMap( ...
-            MDP, realAgentLocation, blockSize );
-        % $agentLocation$ is the location on the viewable grid map for the
-        % simulation. It is used by $refreshScreen$.
-        
-        currentMap = viewableGridMap ; %#ok<NASGU>
-        % $currentMap$ is keeping track of which part of the full test map
-        % should be printed by $refreshScreen$ or $printAgentTrajectory$.
-        
-        refreshScreen
-        
-        pause(0.15)
+%         
+%         [ viewableGridMap, agentLocation ] = setCurrentViewableGridMap( ...
+%             MDP, realAgentLocation, blockSize );
+%         % $agentLocation$ is the location on the viewable grid map for the
+%         % simulation. It is used by $refreshScreen$.
+%         
+%         currentMap = viewableGridMap ; %#ok<NASGU>
+%         % $currentMap$ is keeping track of which part of the full test map
+%         % should be printed by $refreshScreen$ or $printAgentTrajectory$.
+%         
+%         refreshScreen
+%         
+%         pause(0.15)
         
     end
+%     step
+    prevWeight = weights;
     
+    for i=1:step
+        stateFeatures = states(i);
+        actionTaken = actions(i);
+        Return = 0;
+        for k = i:step
+            Return = Return + discount^(k-i) * rewards(k);
+        end
+        q_value = sum(sum(weights(:,:,actionTaken) .* stateFeatures));
+        weights(:, :, actionTaken) = weights(:, :, actionTaken) + ...
+                alpha .* ((Return - q_value) .* stateFeatures);
+    end
+%     disp("Weights after update")
+%     disp(weights)
+    if abs(prevWeight - weights) < 1e-05
+        disp("Weights are not changing anymore")
+        episode
+        break
+    end
+    alpha = alpha * (1/(1 + decay * episode));
     currentMap = MDP ;
     agentLocation = realAgentLocation ;
+%     Returns
+%     Return
     
-    Return
-    
-    printAgentTrajectory
-    pause(1)
+%     printAgentTrajectory
+%     pause(1)
     
 end % for each episode
 
+weights
